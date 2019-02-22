@@ -63,6 +63,7 @@ public class PacSimMinimax implements PacAction
 
         generate(grid);
         GameTreeNode root = tree.root;
+        // tree.printTree(root);
 
         for(GameTreeNode node : root.possibleMoves)
         {
@@ -97,7 +98,7 @@ public class PacSimMinimax implements PacAction
     // Generate tree based on possible moves at specified depth
     public void generate_Moves(GameTreeNode root)
     {
-        if (move > depth)
+        if (move >= depth)
             return;
 
         boolean include = true;
@@ -106,7 +107,6 @@ public class PacSimMinimax implements PacAction
         List<Point> ghosts = PacUtils.findGhosts(root.grid);
 
         // Generate moves in every direction
-        // TODO verify invalid moves are dealt with appropriately
         // (ie not added to list of possible moves
         for (int j = 0; j < 4; j++)
         {
@@ -134,47 +134,65 @@ public class PacSimMinimax implements PacAction
             }
 
             // Make move in direction, dir, and add new possible state to list of possible moves
+            // if Pacman's turn, move pacman, else move ghost
             if (this.player == 0) {
                 PacmanCell pacman = PacUtils.findPacman(tempGrid);
                 if (pacman == null)
                     continue;
+
                 Point pc = pacman.getLoc();
                 Point neighbor = PacUtils.neighbor(dir, pc, tempGrid).getLoc();
-                tempGrid = PacUtils.movePacman(pc, neighbor, tempGrid);
 
-                if (PacUtils.neighbor(dir, pc, tempGrid).getClass() == WallCell.class)
+                if (PacUtils.neighbor(dir, pc, tempGrid) instanceof WallCell)
                 {
                     include = false;
                 }
-            } else {
+
+                System.out.println(PacUtils.neighbor(dir, pacman, tempGrid).getClass());
+                tempGrid = PacUtils.movePacman(pc, neighbor, tempGrid);
+
+
+            } else
+            {
                 Point ghost = ghosts.get(this.player - 1);
                 Point neighbor = PacUtils.neighbor(dir, ghost, tempGrid).getLoc();
+
+                if (PacUtils.neighbor(dir, ghost, tempGrid).getClass().equals(WallCell.class))
+                {
+                    include = false;
+                }
+
                 tempGrid = PacUtils.moveGhost(ghost, neighbor, tempGrid);
+                //System.out.println(PacUtils.neighbor(dir, ghost, tempGrid).getClass());
             }
 
             if (include)
             {
-                System.out.println(this.player);
+                //System.out.print(this.player + " ");
                 GameTreeNode newMove = new GameTreeNode(tempGrid, this.player);
 
                 // If this is a leaf node, calculate the value of the resulting state
-                if (move == depth && this.player == 2) {
+                if (move == depth && this.player == 2)
+                {
                     float nearestPowerDist;
 
                     PacmanCell pc = PacUtils.findPacman(newMove.grid);
                     List<Point> newGhosts = PacUtils.findGhosts(newMove.grid);
 
-                    if (pc == null) {
+                    if (pc == null)
+                    {
                         continue;
                     }
 
-                    if (newGhosts.size() != 0) {
+                    if (newGhosts.size() != 0)
+                    {
                         GhostCell nearestGhost = PacUtils.nearestGhost(pc.getLoc(), newMove.grid);
                         newMove.value -= (float) 4 / (float) BFSPath.getPath(newMove.grid, pc.getLoc(), nearestGhost.getLoc()).size();
                     }
 
-                    if (PacUtils.numPower(newMove.grid) > 0) {
-                        nearestPowerDist = (float) 2 / (float) BFSPath.getPath(newMove.grid, pc.getLoc(), PacUtils.nearestPower(pc.getLoc(), newMove.grid)).size();
+                    if (PacUtils.numPower(newMove.grid) > 0)
+                    {
+                        nearestPowerDist = (float) 1 / (float) BFSPath.getPath(newMove.grid, pc.getLoc(), PacUtils.nearestPower(pc.getLoc(), newMove.grid)).size();
                         newMove.value += nearestPowerDist;
                     }
                 }
@@ -193,18 +211,23 @@ public class PacSimMinimax implements PacAction
             move += 1;
         }
 
+        int currentPlayer = this.player;
+        int currentMove = move;
+
         // Generate subtrees for possible states from each generated possible move
         for(GameTreeNode node : root.possibleMoves)
         {
             generate_Moves(node);
+            this.player = currentPlayer;
+            move = currentMove;
         }
-        System.out.println("IMADEIT");
     }
 
     public float GetValue(GameTreeNode root)
     {
         float utility = 0;
         int player = root.player;
+        // System.out.println("CURRENT PLAYER: " + player);
 
         // If there are no more possible moves, this is a leaf node,
         // therefore return the distance to the nearest Ghost
@@ -228,7 +251,11 @@ public class PacSimMinimax implements PacAction
                 // We still need to update the value of the node to the returned utility
                 node.value = utility = ((utility == 0) ? GetValue(node) : Math.min(utility, GetValue(node)));
             }
+
+            // System.out.print("UTILITY: " + node.value + " ");
         }
+
+        // System.out.println();
 
         return utility;
     }
@@ -245,6 +272,18 @@ class GameTree
         root = new GameTreeNode(state, player);
     }
 
+    void printTree(GameTreeNode root)
+    {
+        System.out.println("\n\n" + root);
+        System.out.print("Children: ");
+        for (GameTreeNode node : root.possibleMoves) {
+            System.out.print(node + "  ");
+        }
+
+        for (GameTreeNode node : root.possibleMoves) {
+            printTree(node);
+        }
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -264,3 +303,5 @@ class GameTreeNode
         possibleMoves = new ArrayList<>();
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
