@@ -76,7 +76,7 @@ public class PacSimMinimax implements PacAction
             }
         }
 
-        tree.printTree(tree.root);
+        //tree.printTree(tree.root);
 
         Point oldPC = PacUtils.findPacman(grid).getLoc();
         Point newPC = root.possibleMoves.get(maxUtilID).pcLoc;
@@ -85,7 +85,7 @@ public class PacSimMinimax implements PacAction
             return null;
 
         newFace = PacUtils.direction(oldPC, newPC);
-        System.out.println(newPC);
+        //System.out.println(newPC);
 
         return newFace;
     }
@@ -140,7 +140,7 @@ public class PacSimMinimax implements PacAction
             if (this.player == 0) {
                 PacCell neighbor = PacUtils.neighbor(dir, root.pcLoc, gridClone);
 
-                if (neighbor.getClass().equals(WallCell.class) || neighbor.getClass().equals(GhostCell.class)) {
+                if (neighbor.getClass().equals(WallCell.class) || neighbor.getClass().equals(GhostCell.class) || neighbor.getClass().equals(HouseCell.class)) {
                     continue;
                 }
 
@@ -189,13 +189,18 @@ public class PacSimMinimax implements PacAction
 
                     if (Ghosts.size() != 0) {
                         GhostCell nearestGhost = PacUtils.nearestGhost(pc, gridClone);
-                        newMove.value -= (float) 4 / (float) BFSPath.getPath(gridClone, pc, nearestGhost.getLoc()).size();
+                        newMove.value -= (float) 20 / (float) PacUtils.manhattanDistance(pc, nearestGhost.getLoc());
                     }
 
 //                    if (PacUtils.numPower(grid) > 0) {
 //                        nearestPowerDist = (float) 1 / (float) BFSPath.getPath(gridClone, pc, PacUtils.nearestPower(pc, gridClone)).size();
 //                        newMove.value += nearestPowerDist;
 //                    }
+
+                    if (PacUtils.foodRemains(gridClone))
+                    {
+                        newMove.value += (float) 1 / (float) BFSPath.getPath(gridClone, pc, PacUtils.nearestFood(pc, gridClone)).size();
+                    }
                 }
 
                 root.possibleMoves.add(newMove);
