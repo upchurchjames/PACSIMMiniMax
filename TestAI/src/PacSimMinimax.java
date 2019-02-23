@@ -55,30 +55,32 @@ public class PacSimMinimax implements PacAction
     @Override
     public PacFace action( Object state ){
         PacCell[][] grid = (PacCell[][]) state;
-        PacFace newFace = null;
-        Point temp = PacUtils.findPacman(grid).getLoc();
+        PacFace newFace;
+
         this.tree = null;
 
         float maxUtil = Integer.MIN_VALUE;
         int maxUtilID = -1;
         move = 0;
+        player = 0;
 
         generate(grid);
         GameTreeNode root = tree.root;
-        // tree.printTree(root);
 
         for(GameTreeNode node : root.possibleMoves)
         {
             node.value = GetValue(node);
-            if (node.value > maxUtil)
-            {
+            if (node.value > maxUtil) {
                 maxUtil = node.value;
                 maxUtilID = root.possibleMoves.indexOf(node);
             }
         }
 
         Point oldPC = PacUtils.findPacman(grid).getLoc();
-        Point newPC = PacUtils.findPacman(root.possibleMoves.get(maxUtilID).grid).getLoc();
+        Point newPC = root.possibleMoves.get(maxUtilID).pcLoc;
+
+        if (newPC == null)
+            return null;
 
         newFace = PacUtils.direction(oldPC, newPC);
         System.out.println(newPC);
@@ -94,32 +96,26 @@ public class PacSimMinimax implements PacAction
         GameTreeNode root = tree.root;
 
         // Build remaining tree with possible states from root
-        generate_Moves(root);
+        generate_Moves(root, grid);
+        tree.printTree(root);
 
     }
 
     // Generate tree based on possible moves at specified depth
-    public void generate_Moves(GameTreeNode root)
-    {
+    public void generate_Moves(GameTreeNode root, PacCell[][] grid) {
         if (move >= depth)
             return;
 
-        boolean include = true;
-
-        // Find all ghost positions
-        List<Point> ghosts = PacUtils.findGhosts(root.grid);
+        List<PacCell[][]> grids = new ArrayList();
 
         // Generate moves in every direction
         // (ie not added to list of possible moves
-        for (int j = 0; j < 4; j++)
-        {
-            // Copy grid and determine direction of next move
-            PacCell[][] tempGrid = root.grid.clone();
+        for (int j = 0; j < 4; j++) {
             PacFace dir;
+            Point ghost = null;
 
             // Pick the next direction
-            switch(j)
-            {
+            switch (j) {
                 case 0:
                     dir = PacFace.N;
                     break;
@@ -139,81 +135,74 @@ public class PacSimMinimax implements PacAction
             // Make move in direction, dir, and add new possible state to list of possible moves
             // if Pacman's turn, move pacman, else move ghost
             if (this.player == 0) {
-                PacmanCell pacman = PacUtils.findPacman(tempGrid);
-                if (pacman == null)
+                PacCell neighbor = PacUtils.neighbor(dir, root.pcLoc, grid);
+                System.out.println(neighbor.getClass() + " " + neighbor.getLoc());
+                if (neighbor.getClass().equals(WallCell.class) || neighbor.getClass().equals(GhostCell.class)) {
                     continue;
-
-                Point pc = pacman.getLoc();
-                Point neighbor = PacUtils.neighbor(dir, pacman, tempGrid).getLoc();
-                System.out.println(PacUtils.neighbor(dir, pacman, tempGrid).getClass());
-                if (PacUtils.neighbor(dir, pacman, tempGrid).getClass().equals(WallCell.class))
-                {
-                    include = false;
                 }
 
-                //System.out.println(PacUtils.neighbor(dir, pacman, tempGrid).getClass());
-                tempGrid = PacUtils.movePacman(pc, neighbor, tempGrid);
+                grid = PacUtils.movePacman(root.pcLoc, neighbor.getLoc(), grid);
+            } else {
+                if (this.player == 1) ghost = root.blinkyLoc;
+                else ghost = root.inkyLoc;
 
+                PacCell neighbor = PacUtils.neighbor(dir, ghost, grid);
 
-            } else
-            {
-                Point ghost = ghosts.get(this.player - 1);
-                Point neighbor = PacUtils.neighbor(dir, ghost, tempGrid).getLoc();
-
-                if (PacUtils.neighbor(dir, ghost, tempGrid).getClass().equals(WallCell.class))
-                {
-                    include = false;
+                if (neighbor instanceof WallCell) {
+                    continue;
                 }
 
-                tempGrid = PacUtils.moveGhost(ghost, neighbor, tempGrid);
-                //System.out.println(PacUtils.neighbor(dir, ghost, tempGrid).getClass());
-
-                PacmanCell temp = PacUtils.findPacman(tempGrid);
-
-                System.out.println();
+                grid = PacUtils.moveGhost(ghost, neighbor.getLoc(), grid);
             }
 
-            if (include)
+            GameTreeNode newMove;
+            PacCell pacman = PacUtils.findPacman(grid);
+            Point pc = null;
+            if (pacman != null) {
+                pc = pacman.getLoc();
+            }
+
+            // INCLUDE MOVE IN LIST OF POSSIBLE MOVES
+            if (pc != null)
             {
-                //System.out.print(this.player + " ");
-                GameTreeNode newMove = new GameTreeNode(tempGrid, this.player);
+                if (this.player == 0)
+                    newMove = new GameTreeNode(this.player, pc, root.blinkyLoc, root.inkyLoc);
+                else if (this.player == 1)
+                    newMove = new GameTreeNode(this.player, pc, ghost, root.inkyLoc);
+                else
+                    newMove = new GameTreeNode(this.player, pc, root.blinkyLoc, ghost);
+
 
                 // If this is a leaf node, calculate the value of the resulting state
-                if (move == depth && this.player == 2)
-                {
+                // EVALUATION FUNCTION
+                if (move == depth && this.player == 2) {
                     float nearestPowerDist;
 
-                    PacmanCell pc = PacUtils.findPacman(newMove.grid);
-                    List<Point> newGhosts = PacUtils.findGhosts(newMove.grid);
+                    List<Point> Ghosts = PacUtils.findGhosts(grid);
 
-                    if (pc == null)
-                    {
+                    if (pc == null) {
                         continue;
                     }
 
-                    if (newGhosts.size() != 0)
-                    {
-                        GhostCell nearestGhost = PacUtils.nearestGhost(pc.getLoc(), newMove.grid);
-                        newMove.value -= (float) 4 / (float) BFSPath.getPath(newMove.grid, pc.getLoc(), nearestGhost.getLoc()).size();
+                    if (Ghosts.size() != 0) {
+                        GhostCell nearestGhost = PacUtils.nearestGhost(pc, grid);
+                        newMove.value -= (float) 4 / (float) BFSPath.getPath(grid, pc, nearestGhost.getLoc()).size();
                     }
 
-                    if (PacUtils.numPower(newMove.grid) > 0)
-                    {
-                        nearestPowerDist = (float) 1 / (float) BFSPath.getPath(newMove.grid, pc.getLoc(), PacUtils.nearestPower(pc.getLoc(), newMove.grid)).size();
+                    if (PacUtils.numPower(grid) > 0) {
+                        nearestPowerDist = (float) 1 / (float) BFSPath.getPath(grid, pc, PacUtils.nearestPower(pc, grid)).size();
                         newMove.value += nearestPowerDist;
                     }
                 }
 
                 root.possibleMoves.add(newMove);
+                grids.add(grid);
             }
-
-            include = true;
         }
 
         this.player++;
 
-        if (this.player > 2)
-        {
+        if (this.player > 2) {
             this.player = 0;
             move += 1;
         }
@@ -222,12 +211,12 @@ public class PacSimMinimax implements PacAction
         int currentMove = move;
 
         // Generate subtrees for possible states from each generated possible move
-        for(GameTreeNode node : root.possibleMoves)
-        {
-            generate_Moves(node);
+        for (GameTreeNode node : root.possibleMoves) {
+            generate_Moves(node, grids.get(root.possibleMoves.indexOf(node)));
             this.player = currentPlayer;
             move = currentMove;
         }
+
     }
 
     public float GetValue(GameTreeNode root)
@@ -276,7 +265,24 @@ class GameTree
 
     public GameTree(PacCell[][] state, int player)
     {
-        root = new GameTreeNode(state, player);
+        Point pcLoc = PacUtils.findPacman(state).getLoc();
+        Point blinkyLoc, inkyLoc;
+        PacCell nearestGhost = PacUtils.nearestGhost(pcLoc, state);
+
+        List<Point> Ghosts = PacUtils.findGhosts(state);
+
+        if (nearestGhost instanceof BlinkyCell)
+        {
+            blinkyLoc = nearestGhost.getLoc();
+            Ghosts.remove(nearestGhost.getLoc());
+            inkyLoc = Ghosts.get(0);
+        } else {
+            inkyLoc = nearestGhost.getLoc();
+            Ghosts.remove(nearestGhost.getLoc());
+            blinkyLoc = Ghosts.get(0);
+        }
+
+        root = new GameTreeNode(player, pcLoc, blinkyLoc, inkyLoc);
     }
 
     void printTree(GameTreeNode root)
@@ -284,7 +290,8 @@ class GameTree
         System.out.println("\n\n" + root);
         System.out.print("Children: ");
         for (GameTreeNode node : root.possibleMoves) {
-            System.out.print(node + "  ");
+            System.out.print(node + "  " + node.player + " " + root.pcLoc + " ");
+
         }
 
         for (GameTreeNode node : root.possibleMoves) {
@@ -299,15 +306,20 @@ class GameTreeNode
 {
     int player;
     float value;
-    PacCell[][] grid;
     List<GameTreeNode> possibleMoves;
+    Point pcLoc;
+    Point blinkyLoc;
+    Point inkyLoc;
 
-    public GameTreeNode(PacCell[][] state, int player)
+    public GameTreeNode(int player, Point pcLoc, Point blinkyLoc, Point inkyLoc)
     {
         this.player = player;
-        value = 0;
-        grid = PacUtils.cloneGrid(state);
+        value = Float.MIN_VALUE;
         possibleMoves = new ArrayList<>();
+        this.pcLoc = pcLoc;
+        this.blinkyLoc = blinkyLoc;
+        this.inkyLoc = inkyLoc;
+
     }
 }
 
