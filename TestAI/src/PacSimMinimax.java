@@ -7,7 +7,7 @@ import pacsim.*;
 
 public class PacSimMinimax implements PacAction
 {
-    int depth, player = 0, move = 0;
+    int depth, player, move;
     GameTree tree;
 
     public PacSimMinimax( int depth, String fname, int te, int gran, int max )
@@ -49,7 +49,10 @@ public class PacSimMinimax implements PacAction
     }
 
     @Override
-    public void init() {}
+    public void init() {
+        player = 0;
+        move = 0;
+    }
 
     // Heuristic: Distance to nearest ghost
     @Override
@@ -139,24 +142,26 @@ public class PacSimMinimax implements PacAction
             // Make move in direction, dir, and add new possible state to list of possible moves
             // if Pacman's turn, move pacman, else move ghost
             if (this.player == 0) {
+                //System.out.println(this.player);
                 PacmanCell pacman = PacUtils.findPacman(tempGrid);
                 if (pacman == null)
                     continue;
 
                 Point pc = pacman.getLoc();
                 Point neighbor = PacUtils.neighbor(dir, pacman, tempGrid).getLoc();
-                System.out.println(PacUtils.neighbor(dir, pacman, tempGrid).getClass());
+                //System.out.println(PacUtils.neighbor(dir, pacman, tempGrid).getClass());
                 if (PacUtils.neighbor(dir, pacman, tempGrid).getClass().equals(WallCell.class))
                 {
                     include = false;
                 }
-
-                //System.out.println(PacUtils.neighbor(dir, pacman, tempGrid).getClass());
-                tempGrid = PacUtils.movePacman(pc, neighbor, tempGrid);
-
+                else{
+                    //System.out.println(PacUtils.neighbor(dir, pacman, tempGrid).getClass());
+                    tempGrid = PacUtils.movePacman(pc, neighbor, tempGrid);
+                }
 
             } else
             {
+                //System.out.println(this.player);
                 Point ghost = ghosts.get(this.player - 1);
                 Point neighbor = PacUtils.neighbor(dir, ghost, tempGrid).getLoc();
 
@@ -164,13 +169,13 @@ public class PacSimMinimax implements PacAction
                 {
                     include = false;
                 }
-
+                else{
                 tempGrid = PacUtils.moveGhost(ghost, neighbor, tempGrid);
                 //System.out.println(PacUtils.neighbor(dir, ghost, tempGrid).getClass());
-
+                }
                 PacmanCell temp = PacUtils.findPacman(tempGrid);
 
-                System.out.println();
+                //System.out.println();
             }
 
             if (include)
@@ -194,13 +199,13 @@ public class PacSimMinimax implements PacAction
                     if (newGhosts.size() != 0)
                     {
                         GhostCell nearestGhost = PacUtils.nearestGhost(pc.getLoc(), newMove.grid);
-                        newMove.value -= (float) 4 / (float) BFSPath.getPath(newMove.grid, pc.getLoc(), nearestGhost.getLoc()).size();
+                        newMove.value += (float) 4 / (float) BFSPath.getPath(newMove.grid, pc.getLoc(), nearestGhost.getLoc()).size();
                     }
 
                     if (PacUtils.numPower(newMove.grid) > 0)
                     {
-                        nearestPowerDist = (float) 1 / (float) BFSPath.getPath(newMove.grid, pc.getLoc(), PacUtils.nearestPower(pc.getLoc(), newMove.grid)).size();
-                        newMove.value += nearestPowerDist;
+                        nearestPowerDist = (float) BFSPath.getPath(newMove.grid, pc.getLoc(), PacUtils.nearestPower(pc.getLoc(), newMove.grid)).size();
+                        //newMove.value -= nearestPowerDist;
                     }
                 }
 

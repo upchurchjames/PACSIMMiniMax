@@ -1,0 +1,20 @@
+{
+    "configurations": [
+        {
+            "type": "java",
+            "name": "CodeLens (Launch) - PacSimRNNA",
+            "request": "launch",
+            "mainClass": "PacSimRNNA",
+            "projectName": "TestAI_289004da",
+            "args": "${command:SpecifyProgramArgs}"
+        },
+        {
+            "type": "java",
+            "name": "CodeLens (Launch) - PacSimMinimax",
+            "request": "launch",
+            "mainClass": "PacSimMinimax",
+            "projectName": "TestAI_289004da",
+            "args": "${command:SpecifyProgramArgs}"
+        }
+    ]
+}
