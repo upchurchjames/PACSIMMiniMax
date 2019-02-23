@@ -129,7 +129,6 @@ public class PacSimMinimax implements PacAction {
                 // moves
                 // if Pacman's turn, move pacman, else move ghost
                 if (player == 0) {
-                    // System.out.println(this.player);
                     PacmanCell pacman = PacUtils.findPacman(tempGrid);
                     if (pacman == null)
                         continue;
@@ -139,22 +138,21 @@ public class PacSimMinimax implements PacAction {
                     // System.out.println(PacUtils.neighbor(dir, pacman, tempGrid).getClass());
                     if (PacUtils.neighbor(dir, pacman, tempGrid).getClass().equals(WallCell.class)) {
                         include = false;
-                    } else {
-                        // System.out.println(PacUtils.neighbor(dir, pacman, tempGrid).getClass());
+                    } else{
+                        System.out.println(PacUtils.neighbor(dir, pacman, tempGrid).getClass());
                         tempGrid = PacUtils.movePacman(pc, neighbor, tempGrid);
                     }
 
                 } else {
-                    // System.out.println(this.player);
                     Point ghost = ghosts.get(player - 1);
                     Point neighbor = PacUtils.neighbor(dir, ghost, tempGrid).getLoc();
 
                     if (PacUtils.neighbor(dir, ghost, tempGrid).getClass().equals(WallCell.class)) {
                         include = false;
-                    } else {
+                    } 
                         tempGrid = PacUtils.moveGhost(ghost, neighbor, tempGrid);
                         // System.out.println(PacUtils.neighbor(dir, ghost, tempGrid).getClass());
-                    }
+                    
                     PacmanCell temp = PacUtils.findPacman(tempGrid);
 
                     // System.out.println();
@@ -165,7 +163,7 @@ public class PacSimMinimax implements PacAction {
                     GameTreeNode newMove = new GameTreeNode(tempGrid, player);
 
                     // If this is a leaf node, calculate the value of the resulting state
-                    if (move == depth && player == 2) {
+                    if (move == depth-1 && player == 2) {
                         float nearestPowerDist;
 
                         PacmanCell pc = PacUtils.findPacman(newMove.grid);
@@ -177,14 +175,16 @@ public class PacSimMinimax implements PacAction {
 
                         if (newGhosts.size() != 0) {
                             GhostCell nearestGhost = PacUtils.nearestGhost(pc.getLoc(), newMove.grid);
-                            //newMove.value -= (float) 4
-                              //      / (float) BFSPath.getPath(newMove.grid, pc.getLoc(), nearestGhost.getLoc()).size();
+                            newMove.value += (float) 4
+                                    / (float) BFSPath.getPath(newMove.grid, pc.getLoc(), nearestGhost.getLoc()).size();
+                            System.out.println("PACMAN:" + pc.getLoc());
                         }
 
-                        if (PacUtils.numPower(newMove.grid) > 0) {
+                        if (PacUtils.foodRemains(newMove.grid)) {
                             nearestPowerDist = (float) BFSPath.getPath(newMove.grid, pc.getLoc(),
-                                    PacUtils.nearestPower(pc.getLoc(), newMove.grid)).size();
-                            newMove.value += nearestPowerDist;
+                                    PacUtils.nearestFood(pc.getLoc(), newMove.grid)).size();
+                            //newMove.value -= nearestPowerDist;
+                            //System.out.println(nearestPowerDist);
                         }
                     }
 
@@ -199,9 +199,9 @@ public class PacSimMinimax implements PacAction {
         // int currentPlayer = this.player;
         //int currentMove = move;
         // Generate subtrees for possible states from each generated possible move
-        System.out.println("HERE");
+        //System.out.println("HERE");
         for (GameTreeNode node : root.possibleMoves) {
-            System.out.println("TEST");
+            //System.out.println("TEST");
             /* Generating moves here causes the stack overload */
             generate_Moves(node, ++move);
         }
