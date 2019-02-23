@@ -97,7 +97,7 @@ public class PacSimMinimax implements PacAction
 
         // Build remaining tree with possible states from root
         generate_Moves(root, grid);
-        tree.printTree(root);
+        //tree.printTree(root);
 
     }
 
@@ -136,7 +136,7 @@ public class PacSimMinimax implements PacAction
             // if Pacman's turn, move pacman, else move ghost
             if (this.player == 0) {
                 PacCell neighbor = PacUtils.neighbor(dir, root.pcLoc, grid);
-                System.out.println(neighbor.getClass() + " " + neighbor.getLoc());
+                
                 if (neighbor.getClass().equals(WallCell.class) || neighbor.getClass().equals(GhostCell.class)) {
                     continue;
                 }
@@ -175,7 +175,7 @@ public class PacSimMinimax implements PacAction
 
                 // If this is a leaf node, calculate the value of the resulting state
                 // EVALUATION FUNCTION
-                if (move == depth && this.player == 2) {
+                if (move == depth - 1 && this.player == 2) {
                     float nearestPowerDist;
 
                     List<Point> Ghosts = PacUtils.findGhosts(grid);
@@ -251,7 +251,9 @@ public class PacSimMinimax implements PacAction
             // System.out.print("UTILITY: " + node.value + " ");
         }
 
-        // System.out.println();
+        System.out.println("Utility: " + utility);
+
+        System.out.println();
 
         return utility;
     }
