@@ -177,14 +177,14 @@ public class PacSimMinimax implements PacAction {
 
                         if (newGhosts.size() != 0) {
                             GhostCell nearestGhost = PacUtils.nearestGhost(pc.getLoc(), newMove.grid);
-                            newMove.value += (float) 4
-                                    / (float) BFSPath.getPath(newMove.grid, pc.getLoc(), nearestGhost.getLoc()).size();
+                            //newMove.value -= (float) 4
+                              //      / (float) BFSPath.getPath(newMove.grid, pc.getLoc(), nearestGhost.getLoc()).size();
                         }
 
                         if (PacUtils.numPower(newMove.grid) > 0) {
                             nearestPowerDist = (float) BFSPath.getPath(newMove.grid, pc.getLoc(),
                                     PacUtils.nearestPower(pc.getLoc(), newMove.grid)).size();
-                            newMove.value -= nearestPowerDist;
+                            newMove.value += nearestPowerDist;
                         }
                     }
 
@@ -199,10 +199,11 @@ public class PacSimMinimax implements PacAction {
         // int currentPlayer = this.player;
         //int currentMove = move;
         // Generate subtrees for possible states from each generated possible move
+        System.out.println("HERE");
         for (GameTreeNode node : root.possibleMoves) {
-            //System.out.println("TEST");
+            System.out.println("TEST");
             /* Generating moves here causes the stack overload */
-            //generate_Moves(node, move++);
+            generate_Moves(node, ++move);
         }
     }
 
