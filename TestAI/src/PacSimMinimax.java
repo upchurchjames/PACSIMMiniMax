@@ -70,11 +70,13 @@ public class PacSimMinimax implements PacAction
         for(GameTreeNode node : root.possibleMoves)
         {
             node.value = GetValue(node);
-            if (node.value > maxUtil) {
+            if (node.value >= maxUtil) {
                 maxUtil = node.value;
                 maxUtilID = root.possibleMoves.indexOf(node);
             }
         }
+
+        tree.printTree(tree.root);
 
         Point oldPC = PacUtils.findPacman(grid).getLoc();
         Point newPC = root.possibleMoves.get(maxUtilID).pcLoc;
@@ -113,6 +115,7 @@ public class PacSimMinimax implements PacAction
         for (int j = 0; j < 4; j++) {
             PacFace dir;
             Point ghost = null;
+            PacCell[][] gridClone = PacUtils.cloneGrid(grid);
 
             // Pick the next direction
             switch (j) {
@@ -135,28 +138,28 @@ public class PacSimMinimax implements PacAction
             // Make move in direction, dir, and add new possible state to list of possible moves
             // if Pacman's turn, move pacman, else move ghost
             if (this.player == 0) {
-                PacCell neighbor = PacUtils.neighbor(dir, root.pcLoc, grid);
-                
+                PacCell neighbor = PacUtils.neighbor(dir, root.pcLoc, gridClone);
+
                 if (neighbor.getClass().equals(WallCell.class) || neighbor.getClass().equals(GhostCell.class)) {
                     continue;
                 }
 
-                grid = PacUtils.movePacman(root.pcLoc, neighbor.getLoc(), grid);
+                gridClone = PacUtils.movePacman(root.pcLoc, neighbor.getLoc(), gridClone);
             } else {
                 if (this.player == 1) ghost = root.blinkyLoc;
                 else ghost = root.inkyLoc;
 
-                PacCell neighbor = PacUtils.neighbor(dir, ghost, grid);
+                PacCell neighbor = PacUtils.neighbor(dir, ghost, gridClone);
 
                 if (neighbor instanceof WallCell) {
                     continue;
                 }
 
-                grid = PacUtils.moveGhost(ghost, neighbor.getLoc(), grid);
+                gridClone = PacUtils.moveGhost(ghost, neighbor.getLoc(), gridClone);
             }
 
             GameTreeNode newMove;
-            PacCell pacman = PacUtils.findPacman(grid);
+            PacCell pacman = PacUtils.findPacman(gridClone);
             Point pc = null;
             if (pacman != null) {
                 pc = pacman.getLoc();
@@ -178,25 +181,25 @@ public class PacSimMinimax implements PacAction
                 if (move == depth - 1 && this.player == 2) {
                     float nearestPowerDist;
 
-                    List<Point> Ghosts = PacUtils.findGhosts(grid);
+                    List<Point> Ghosts = PacUtils.findGhosts(gridClone);
 
                     if (pc == null) {
                         continue;
                     }
 
                     if (Ghosts.size() != 0) {
-                        GhostCell nearestGhost = PacUtils.nearestGhost(pc, grid);
-                        newMove.value -= (float) 4 / (float) BFSPath.getPath(grid, pc, nearestGhost.getLoc()).size();
+                        GhostCell nearestGhost = PacUtils.nearestGhost(pc, gridClone);
+                        newMove.value -= (float) 4 / (float) BFSPath.getPath(gridClone, pc, nearestGhost.getLoc()).size();
                     }
 
-                    if (PacUtils.numPower(grid) > 0) {
-                        nearestPowerDist = (float) 1 / (float) BFSPath.getPath(grid, pc, PacUtils.nearestPower(pc, grid)).size();
-                        newMove.value += nearestPowerDist;
-                    }
+//                    if (PacUtils.numPower(grid) > 0) {
+//                        nearestPowerDist = (float) 1 / (float) BFSPath.getPath(gridClone, pc, PacUtils.nearestPower(pc, gridClone)).size();
+//                        newMove.value += nearestPowerDist;
+//                    }
                 }
 
                 root.possibleMoves.add(newMove);
-                grids.add(grid);
+                grids.add(gridClone);
             }
         }
 
@@ -251,10 +254,6 @@ public class PacSimMinimax implements PacAction
             // System.out.print("UTILITY: " + node.value + " ");
         }
 
-        System.out.println("Utility: " + utility);
-
-        System.out.println();
-
         return utility;
     }
 }
@@ -292,7 +291,7 @@ class GameTree
         System.out.println("\n\n" + root);
         System.out.print("Children: ");
         for (GameTreeNode node : root.possibleMoves) {
-            System.out.print(node + "  " + node.player + " " + root.pcLoc + " ");
+            System.out.print(node.value);
 
         }
 
