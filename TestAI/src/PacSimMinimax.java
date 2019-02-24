@@ -42,9 +42,9 @@ public class PacSimMinimax implements PacAction
         if ( te > 0 )
         {
             System.out.println("    Preliminary runs : " + te
-            + "\n   Granularity : " + gr
-            + "\n   Max move limit  : " + ml
-            + "\n\nPreliminary run results :\n");
+                    + "\n   Granularity : " + gr
+                    + "\n   Max move limit  : " + ml
+                    + "\n\nPreliminary run results :\n");
         }
     }
 
