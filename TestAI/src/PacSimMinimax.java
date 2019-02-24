@@ -70,6 +70,7 @@ public class PacSimMinimax implements PacAction
         for(GameTreeNode node : root.possibleMoves)
         {
             node.value = GetValue(node);
+            //System.out.println(node.value + " ");
             if (node.value >= maxUtil) {
                 maxUtil = node.value;
                 maxUtilID = root.possibleMoves.indexOf(node);
@@ -80,8 +81,6 @@ public class PacSimMinimax implements PacAction
         {
             return null;
         }
-
-        //tree.printTree(tree.root);
 
         Point oldPC = PacUtils.findPacman(grid).getLoc();
         Point newPC = root.possibleMoves.get(maxUtilID).pcLoc;
@@ -114,6 +113,7 @@ public class PacSimMinimax implements PacAction
             return;
 
         List<PacCell[][]> grids = new ArrayList();
+        int foodRem = PacUtils.numFood(grid);
 
         // Generate moves in every direction
         // (ie not added to list of possible moves
@@ -192,23 +192,26 @@ public class PacSimMinimax implements PacAction
                 if (move == depth - 1 && this.player == 2) {
                     List<Point> Ghosts = PacUtils.findGhosts(gridClone);
 
-                    if (pc == null) {
-                        newMove.value -= (float) 5000;
-                    } else if (!PacUtils.foodRemains(gridClone))
-                    {
-                        newMove.value += (float) 5000;
-                    }
-
                     if (Ghosts.size() != 0) {
                         GhostCell nearestGhost = PacUtils.nearestGhost(pc, gridClone);
-                        newMove.value -= (BFSPath.getPath(gridClone, nearestGhost.getLoc(), pc).size());
+                        newMove.value += 4 * (BFSPath.getPath(gridClone, nearestGhost.getLoc(), pc).size());
                     }
 
                     if (PacUtils.foodRemains(gridClone))
                     {
-                        newMove.value += (BFSPath.getPath(gridClone, PacUtils.nearestFood(pc, gridClone), pc).size());
+                        newMove.value -= 1.5 * (BFSPath.getPath(gridClone, PacUtils.nearestFood(pc, gridClone), pc).size());
+                        if (foodRem > PacUtils.numFood(gridClone))
+                        {
+                            newMove.value += .75 * foodRem;
+                        }
                     }
-                    System.out.println("Utility: " + newMove.value + " Blinky: " + root.blinkyLoc + " Inky: " + root.inkyLoc+ " Pacman: " + root.pcLoc);
+
+                    if (PacUtils.numPower(gridClone) > 0)
+                    {
+                        newMove.value -= 2.5 * (BFSPath.getPath(gridClone, PacUtils.nearestPower(pc, gridClone), pc).size());
+                    }
+
+                    //System.out.println("Utility: " + newMove.value + " Blinky: " + newMove.blinkyLoc + " Inky: " +  newMove.inkyLoc+ " Pacman: " + newMove.pcLoc);
                 }
 
                 root.possibleMoves.add(newMove);
@@ -238,9 +241,6 @@ public class PacSimMinimax implements PacAction
     public float GetValue(GameTreeNode root)
     {
         float utility = 0;
-        int player = root.player;
-        System.out.println(root.player);
-        // System.out.println("CURRENT PLAYER: " + player);
 
         // If there are no more possible moves, this is a leaf node,
         // therefore return the distance to the nearest Ghost
@@ -253,7 +253,7 @@ public class PacSimMinimax implements PacAction
         {
             // If this is Pacman's move, return the max value
             // Else, return the min value
-            if (player == 0)
+            if (root.player == 0)
             {
                 // If utility is 0 and GetValue(node) happens to return a negative value,
                 // We still need to update the value of the node to the returned utility
@@ -264,8 +264,6 @@ public class PacSimMinimax implements PacAction
                 // We still need to update the value of the node to the returned utility
                 node.value = utility = ((utility == 0) ? GetValue(node) : Math.min(utility, GetValue(node)));
             }
-
-            // System.out.print("UTILITY: " + node.value + " ");
         }
 
         return utility;
