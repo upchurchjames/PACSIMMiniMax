@@ -67,11 +67,18 @@ public class PacSimMinimax implements PacAction {
             }
         }
 
+        if (maxUtilID == -1) {
+            return null;
+        }
+
         Point oldPC = PacUtils.findPacman(grid).getLoc();
         Point newPC = PacUtils.findPacman(root.possibleMoves.get(maxUtilID).grid).getLoc();
 
+        if (newPC == null)
+            return null;
+
         newFace = PacUtils.direction(oldPC, newPC);
-        //System.out.println(newPC);
+        // System.out.println(newPC);
 
         return newFace;
     }
@@ -79,7 +86,7 @@ public class PacSimMinimax implements PacAction {
     // Generate tree of possible states
     public void generate(PacCell[][] grid) {
         // Create tree with root
-        tree = new GameTree(grid, 0);
+        tree = new GameTree(grid);
         GameTreeNode root = tree.root;
 
         // Build remaining tree with possible states from root
@@ -131,34 +138,35 @@ public class PacSimMinimax implements PacAction {
                         continue;
                     tempGrid = PacUtils.moveGhost(ghosts.get(1), neighbor.getLoc(), tempGrid);
 
-                    GameTreeNode newMove = new GameTreeNode(tempGrid, 0);
+                    GameTreeNode newMove = new GameTreeNode(tempGrid);
 
                     // If this is a leaf node, calculate the value of the resulting state
                     if (move == depth - 1) {
                         PacmanCell newPc = PacUtils.findPacman(newMove.grid);
                         List<Point> newGhosts = PacUtils.findGhosts(newMove.grid);
-                        //System.out.println(newGhosts);
+                        // System.out.println(newGhosts);
                         if (newPc == null) {
                             continue;
                         }
 
                         if (newGhosts.size() != 0) {
                             GhostCell nearestGhost = PacUtils.nearestGhost(newPc.getLoc(), newMove.grid);
-                            newMove.value += (float) BFSPath.getPath(newMove.grid, newPc.getLoc(), nearestGhost.getLoc()).size();
+                            newMove.value += (float) BFSPath
+                                    .getPath(newMove.grid, newPc.getLoc(), nearestGhost.getLoc()).size();
                         }
 
                         if (PacUtils.foodRemains(newMove.grid)) {
-                            newMove.value -= (float) BFSPath
-                                    .getPath(newMove.grid, newPc.getLoc(), PacUtils.nearestFood(newPc.getLoc(), newMove.grid))
-                                    .size();
+                            newMove.value -= 2 * (float) BFSPath.getPath(newMove.grid, newPc.getLoc(),
+                                    PacUtils.nearestFood(newPc.getLoc(), newMove.grid)).size();
                         }
-                        if (onFood){
-                            newMove.value += 5;
+
+                        if (onFood) {
+                            newMove.value += 20;
                         }
                     }
 
                     root.possibleMoves.add(newMove);
-                    //tempGrid = root.grid.clone();
+                    // tempGrid = root.grid.clone();
                 }
             }
         }
@@ -170,7 +178,6 @@ public class PacSimMinimax implements PacAction {
 
     public float GetValue(GameTreeNode root) {
         float utility = 0;
-        int player = root.player;
         // System.out.println("CURRENT PLAYER: " + player);
 
         // If there are no more possible moves, this is a leaf node,
@@ -180,17 +187,9 @@ public class PacSimMinimax implements PacAction {
         }
 
         for (GameTreeNode node : root.possibleMoves) {
-            // If this is Pacman's move, return the max value
-            // Else, return the min value
-            if (player == 0) {
-                // If utility is 0 and GetValue(node) happens to return a negative value,
-                // We still need to update the value of the node to the returned utility
-                node.value = utility = ((utility == 0) ? GetValue(node) : Math.max(utility, GetValue(node)));
-            } else {
-                // If utility is 0 and GetValue(node) happens to return a positive value,
-                // We still need to update the value of the node to the returned utility
-                node.value = utility = ((utility == 0) ? GetValue(node) : Math.min(utility, GetValue(node)));
-            }
+            // If utility is 0 and GetValue(node) happens to return a negative value,
+            // We still need to update the value of the node to the returned utility
+            node.value = utility = ((utility == 0) ? GetValue(node) : Math.max(utility, GetValue(node)));
 
             // System.out.print("UTILITY: " + node.value + " ");
         }
@@ -206,8 +205,8 @@ public class PacSimMinimax implements PacAction {
 class GameTree {
     GameTreeNode root;
 
-    public GameTree(PacCell[][] state, int player) {
-        root = new GameTreeNode(state, player);
+    public GameTree(PacCell[][] state) {
+        root = new GameTreeNode(state);
     }
 
     void printTree(GameTreeNode root) {
@@ -226,13 +225,11 @@ class GameTree {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class GameTreeNode {
-    int player;
     float value;
     PacCell[][] grid;
     List<GameTreeNode> possibleMoves;
 
-    public GameTreeNode(PacCell[][] state, int player) {
-        this.player = player;
+    public GameTreeNode(PacCell[][] state) {
         value = 0;
         grid = PacUtils.cloneGrid(state);
         possibleMoves = new ArrayList<>();
