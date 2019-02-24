@@ -45,7 +45,7 @@ public class PacSimMinimax implements PacAction {
     public void init() {
     }
 
-    // Heuristic: Distance to nearest ghost
+    // Heuristic: Distance to nearest ghost and distance to nearest food
     @Override
     public PacFace action(Object state) {
         PacCell[][] grid = (PacCell[][]) state;
@@ -57,7 +57,6 @@ public class PacSimMinimax implements PacAction {
 
         generate(grid);
         GameTreeNode root = tree.root;
-        // tree.printTree(root);
 
         for (GameTreeNode node : root.possibleMoves) {
             node.value = GetValue(node);
@@ -78,7 +77,6 @@ public class PacSimMinimax implements PacAction {
             return null;
 
         newFace = PacUtils.direction(oldPC, newPC);
-        // System.out.println(newPC);
 
         return newFace;
     }
@@ -115,7 +113,7 @@ public class PacSimMinimax implements PacAction {
 
             pc = pacman.getLoc();
             neighbor = PacUtils.neighbor(pacFace[i], pacman, tempGrid);
-            // System.out.println(PacUtils.neighbor(dir, pacman, tempGrid).getClass());
+
             if (neighbor instanceof WallCell || neighbor instanceof HouseCell || neighbor instanceof GhostCell)
                 continue;
             onFood = neighbor instanceof FoodCell;
@@ -125,7 +123,7 @@ public class PacSimMinimax implements PacAction {
                 // Copy grid and determine direction of next move
 
                 neighbor = PacUtils.neighbor(pacFace[j], ghosts.get(0), tempGrid);
-                // System.out.println(PacUtils.neighbor(dir, pacman, tempGrid).getClass());
+
                 if (neighbor instanceof WallCell)
                     continue;
                 tempGrid = PacUtils.moveGhost(ghosts.get(0), neighbor.getLoc(), tempGrid);
@@ -133,40 +131,37 @@ public class PacSimMinimax implements PacAction {
                 for (int k = 0; k < 4; k++) {
 
                     neighbor = PacUtils.neighbor(pacFace[k], ghosts.get(1), tempGrid);
-                    // System.out.println(PacUtils.neighbor(dir, pacman, tempGrid).getClass());
+
                     if (neighbor instanceof WallCell)
                         continue;
                     tempGrid = PacUtils.moveGhost(ghosts.get(1), neighbor.getLoc(), tempGrid);
 
                     GameTreeNode newMove = new GameTreeNode(tempGrid);
 
-                    // If this is a leaf node, calculate the value of the resulting state
-                    if (move == depth - 1) {
-                        PacmanCell newPc = PacUtils.findPacman(newMove.grid);
-                        List<Point> newGhosts = PacUtils.findGhosts(newMove.grid);
-                        // System.out.println(newGhosts);
-                        if (newPc == null) {
-                            continue;
-                        }
+                    PacmanCell newPc = PacUtils.findPacman(newMove.grid);
+                    List<Point> newGhosts = PacUtils.findGhosts(newMove.grid);
 
-                        if (newGhosts.size() != 0) {
-                            GhostCell nearestGhost = PacUtils.nearestGhost(newPc.getLoc(), newMove.grid);
-                            newMove.value += (float) BFSPath
-                                    .getPath(newMove.grid, newPc.getLoc(), nearestGhost.getLoc()).size();
-                        }
+                    if (newPc == null) {
+                        continue;
+                    }
 
-                        if (PacUtils.foodRemains(newMove.grid)) {
-                            newMove.value -= 2 * (float) BFSPath.getPath(newMove.grid, newPc.getLoc(),
-                                    PacUtils.nearestFood(newPc.getLoc(), newMove.grid)).size();
-                        }
+                    if (newGhosts.size() != 0) {
+                        GhostCell nearestGhost = PacUtils.nearestGhost(newPc.getLoc(), newMove.grid);
+                        newMove.value += (float) BFSPath.getPath(newMove.grid, newPc.getLoc(), nearestGhost.getLoc())
+                                .size();
+                    }
 
-                        if (onFood) {
-                            newMove.value += 20;
-                        }
+                    if (PacUtils.foodRemains(newMove.grid)) {
+                        newMove.value -= 4 * (float) BFSPath.getPath(newMove.grid, newPc.getLoc(),
+                                PacUtils.nearestFood(newPc.getLoc(), newMove.grid)).size();
+                    }
+
+                    if (onFood) {
+                        newMove.value += 100;
                     }
 
                     root.possibleMoves.add(newMove);
-                    // tempGrid = root.grid.clone();
+
                 }
             }
         }
@@ -178,7 +173,6 @@ public class PacSimMinimax implements PacAction {
 
     public float GetValue(GameTreeNode root) {
         float utility = 0;
-        // System.out.println("CURRENT PLAYER: " + player);
 
         // If there are no more possible moves, this is a leaf node,
         // therefore return the distance to the nearest Ghost
@@ -191,10 +185,7 @@ public class PacSimMinimax implements PacAction {
             // We still need to update the value of the node to the returned utility
             node.value = utility = ((utility == 0) ? GetValue(node) : Math.max(utility, GetValue(node)));
 
-            // System.out.print("UTILITY: " + node.value + " ");
         }
-
-        // System.out.println();
 
         return utility;
     }
