@@ -7,6 +7,7 @@ import pacsim.*;
 public class PacSimMinimax implements PacAction {
     int depth;
     GameTree tree;
+    PacFace[] pacFace = { PacFace.N, PacFace.E, PacFace.S, PacFace.W };
 
     public PacSimMinimax(int depth, String fname, int te, int gran, int max) {
         PacSim sim = new PacSim(fname, te, gran, max);
@@ -42,7 +43,6 @@ public class PacSimMinimax implements PacAction {
 
     @Override
     public void init() {
-        //move = 0;
     }
 
     // Heuristic: Distance to nearest ghost
@@ -50,12 +50,10 @@ public class PacSimMinimax implements PacAction {
     public PacFace action(Object state) {
         PacCell[][] grid = (PacCell[][]) state;
         PacFace newFace = null;
-        Point temp = PacUtils.findPacman(grid).getLoc();
         this.tree = null;
 
         float maxUtil = Integer.MIN_VALUE;
         int maxUtilID = -1;
-        //move = 0;
 
         generate(grid);
         GameTreeNode root = tree.root;
@@ -73,7 +71,7 @@ public class PacSimMinimax implements PacAction {
         Point newPC = PacUtils.findPacman(root.possibleMoves.get(maxUtilID).grid).getLoc();
 
         newFace = PacUtils.direction(oldPC, newPC);
-        System.out.println(newPC);
+        //System.out.println(newPC);
 
         return newFace;
     }
@@ -91,118 +89,81 @@ public class PacSimMinimax implements PacAction {
 
     // Generate tree based on possible moves at specified depth
     public void generate_Moves(GameTreeNode root, int move) {
-        if (move >= depth){
+        if (move >= depth) {
             return;
         }
-        
-        boolean include = true;
 
         // Find all ghost positions
         List<Point> ghosts = PacUtils.findGhosts(root.grid);
-        for (int player = 0; player <= 2; player++) {
-            // Generate moves in every direction
-            // (ie not added to list of possible moves
+        PacCell[][] tempGrid = root.grid.clone();
+        PacmanCell pacman;
+        Point pc;
+        PacCell neighbor;
+        Boolean onFood = false;
+        for (int i = 0; i < 4; i++) {
+            tempGrid = root.grid.clone();
+            pacman = PacUtils.findPacman(tempGrid);
+            if (pacman == null)
+                continue;
+
+            pc = pacman.getLoc();
+            neighbor = PacUtils.neighbor(pacFace[i], pacman, tempGrid);
+            // System.out.println(PacUtils.neighbor(dir, pacman, tempGrid).getClass());
+            if (neighbor instanceof WallCell || neighbor instanceof HouseCell || neighbor instanceof GhostCell)
+                continue;
+            onFood = neighbor instanceof FoodCell;
+            tempGrid = PacUtils.movePacman(pc, neighbor.getLoc(), tempGrid);
+
             for (int j = 0; j < 4; j++) {
                 // Copy grid and determine direction of next move
-                PacCell[][] tempGrid = root.grid.clone();
-                PacFace dir;
 
-                // Pick the next direction
-                switch (j) {
-                case 0:
-                    dir = PacFace.N;
-                    break;
-                case 1:
-                    dir = PacFace.E;
-                    break;
-                case 2:
-                    dir = PacFace.S;
-                    break;
-                case 3:
-                    dir = PacFace.W;
-                    break;
-                default:
-                    dir = null;
-                }
+                neighbor = PacUtils.neighbor(pacFace[j], ghosts.get(0), tempGrid);
+                // System.out.println(PacUtils.neighbor(dir, pacman, tempGrid).getClass());
+                if (neighbor instanceof WallCell)
+                    continue;
+                tempGrid = PacUtils.moveGhost(ghosts.get(0), neighbor.getLoc(), tempGrid);
 
-                // Make move in direction, dir, and add new possible state to list of possible
-                // moves
-                // if Pacman's turn, move pacman, else move ghost
-                if (player == 0) {
-                    PacmanCell pacman = PacUtils.findPacman(tempGrid);
-                    if (pacman == null)
-                        continue;
+                for (int k = 0; k < 4; k++) {
 
-                    Point pc = pacman.getLoc();
-                    Point neighbor = PacUtils.neighbor(dir, pacman, tempGrid).getLoc();
+                    neighbor = PacUtils.neighbor(pacFace[k], ghosts.get(1), tempGrid);
                     // System.out.println(PacUtils.neighbor(dir, pacman, tempGrid).getClass());
-                    if (PacUtils.neighbor(dir, pacman, tempGrid).getClass().equals(WallCell.class)) {
-                        include = false;
-                    } else{
-                        System.out.println(PacUtils.neighbor(dir, pacman, tempGrid).getClass());
-                        tempGrid = PacUtils.movePacman(pc, neighbor, tempGrid);
-                    }
+                    if (neighbor instanceof WallCell)
+                        continue;
+                    tempGrid = PacUtils.moveGhost(ghosts.get(1), neighbor.getLoc(), tempGrid);
 
-                } else {
-                    Point ghost = ghosts.get(player - 1);
-                    Point neighbor = PacUtils.neighbor(dir, ghost, tempGrid).getLoc();
-
-                    if (PacUtils.neighbor(dir, ghost, tempGrid).getClass().equals(WallCell.class)) {
-                        include = false;
-                    } 
-                        tempGrid = PacUtils.moveGhost(ghost, neighbor, tempGrid);
-                        // System.out.println(PacUtils.neighbor(dir, ghost, tempGrid).getClass());
-                    
-                    PacmanCell temp = PacUtils.findPacman(tempGrid);
-
-                    // System.out.println();
-                }
-
-                if (include) {
-                    // System.out.print(this.player + " ");
-                    GameTreeNode newMove = new GameTreeNode(tempGrid, player);
+                    GameTreeNode newMove = new GameTreeNode(tempGrid, 0);
 
                     // If this is a leaf node, calculate the value of the resulting state
-                    if (move == depth-1 && player == 2) {
-                        float nearestPowerDist;
-
-                        PacmanCell pc = PacUtils.findPacman(newMove.grid);
+                    if (move == depth - 1) {
+                        PacmanCell newPc = PacUtils.findPacman(newMove.grid);
                         List<Point> newGhosts = PacUtils.findGhosts(newMove.grid);
-
-                        if (pc == null) {
+                        //System.out.println(newGhosts);
+                        if (newPc == null) {
                             continue;
                         }
 
                         if (newGhosts.size() != 0) {
-                            GhostCell nearestGhost = PacUtils.nearestGhost(pc.getLoc(), newMove.grid);
-                            newMove.value += (float) 4
-                                    / (float) BFSPath.getPath(newMove.grid, pc.getLoc(), nearestGhost.getLoc()).size();
-                            System.out.println("PACMAN:" + pc.getLoc());
+                            GhostCell nearestGhost = PacUtils.nearestGhost(newPc.getLoc(), newMove.grid);
+                            newMove.value += (float) BFSPath.getPath(newMove.grid, newPc.getLoc(), nearestGhost.getLoc()).size();
                         }
 
                         if (PacUtils.foodRemains(newMove.grid)) {
-                            nearestPowerDist = (float) BFSPath.getPath(newMove.grid, pc.getLoc(),
-                                    PacUtils.nearestFood(pc.getLoc(), newMove.grid)).size();
-                            //newMove.value -= nearestPowerDist;
-                            //System.out.println(nearestPowerDist);
+                            newMove.value -= (float) BFSPath
+                                    .getPath(newMove.grid, newPc.getLoc(), PacUtils.nearestFood(newPc.getLoc(), newMove.grid))
+                                    .size();
+                        }
+                        if (onFood){
+                            newMove.value += 5;
                         }
                     }
 
                     root.possibleMoves.add(newMove);
+                    //tempGrid = root.grid.clone();
                 }
-
-                include = true;
-
             }
         }
 
-        // int currentPlayer = this.player;
-        //int currentMove = move;
-        // Generate subtrees for possible states from each generated possible move
-        //System.out.println("HERE");
         for (GameTreeNode node : root.possibleMoves) {
-            //System.out.println("TEST");
-            /* Generating moves here causes the stack overload */
             generate_Moves(node, ++move);
         }
     }

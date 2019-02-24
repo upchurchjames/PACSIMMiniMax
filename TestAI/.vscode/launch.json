@@ -14,7 +14,7 @@
             "request": "launch",
             "mainClass": "PacSimMinimax",
             "projectName": "TestAI_289004da",
-            "args": "${command:SpecifyProgramArgs}"
+            "args": "game-small-new ${command:SpecifyProgramArgs}"
         }
     ]
 }
