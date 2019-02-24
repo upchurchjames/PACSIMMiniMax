@@ -4,11 +4,19 @@ import java.util.List;
 
 import pacsim.*;
 
+class StandardValue
+{
+    public static double initial = 1e7;
+    public static double win = 1e6;
+    public static double lose = -1e6;
+}
 
 public class PacSimMinimax implements PacAction
 {
     int depth, player = 0, move = 0;
     GameTree tree;
+    int foodRem;
+    boolean onFood;
 
     public PacSimMinimax( int depth, String fname, int te, int gran, int max )
     {
@@ -56,10 +64,11 @@ public class PacSimMinimax implements PacAction
     public PacFace action( Object state ){
         PacCell[][] grid = (PacCell[][]) state;
         PacFace newFace;
+        foodRem = PacUtils.numFood(grid);
 
         this.tree = null;
 
-        float maxUtil = Integer.MIN_VALUE;
+        double maxUtil = -StandardValue.initial;
         int maxUtilID = -1;
         move = 0;
         player = 0;
@@ -113,32 +122,12 @@ public class PacSimMinimax implements PacAction
             return;
 
         List<PacCell[][]> grids = new ArrayList();
-        int foodRem = PacUtils.numFood(grid);
 
         // Generate moves in every direction
         // (ie not added to list of possible moves
-        for (int j = 0; j < 4; j++) {
-            PacFace dir;
+        for (PacFace dir : PacFace.values()) {
             Point ghost = null;
             PacCell[][] gridClone = PacUtils.cloneGrid(grid);
-
-            // Pick the next direction
-            switch (j) {
-                case 0:
-                    dir = PacFace.N;
-                    break;
-                case 1:
-                    dir = PacFace.E;
-                    break;
-                case 2:
-                    dir = PacFace.S;
-                    break;
-                case 3:
-                    dir = PacFace.W;
-                    break;
-                default:
-                    dir = null;
-            }
 
             // Make move in direction, dir, and add new possible state to list of possible moves
             // if Pacman's turn, move pacman, else move ghost
@@ -150,6 +139,14 @@ public class PacSimMinimax implements PacAction
                         || neighbor instanceof HouseCell)
                 {
                     continue;
+                }
+
+                if (neighbor instanceof FoodCell)
+                {
+                    onFood = true;
+                } else
+                {
+                    onFood = false;
                 }
 
                 gridClone = PacUtils.movePacman(root.pcLoc, neighbor.getLoc(), gridClone);
@@ -186,32 +183,10 @@ public class PacSimMinimax implements PacAction
                 else
                     newMove = new GameTreeNode(this.player, pc, root.blinkyLoc, ghost);
 
-
                 // If this is a leaf node, calculate the value of the resulting state
                 // EVALUATION FUNCTION
                 if (move == depth - 1 && this.player == 2) {
-                    List<Point> Ghosts = PacUtils.findGhosts(gridClone);
-
-                    if (Ghosts.size() != 0) {
-                        GhostCell nearestGhost = PacUtils.nearestGhost(pc, gridClone);
-                        newMove.value += 4 * (BFSPath.getPath(gridClone, nearestGhost.getLoc(), pc).size());
-                    }
-
-                    if (PacUtils.foodRemains(gridClone))
-                    {
-                        newMove.value -= 1.5 * (BFSPath.getPath(gridClone, PacUtils.nearestFood(pc, gridClone), pc).size());
-                        if (foodRem > PacUtils.numFood(gridClone))
-                        {
-                            newMove.value += .75 * foodRem;
-                        }
-                    }
-
-                    if (PacUtils.numPower(gridClone) > 0)
-                    {
-                        newMove.value -= 2.5 * (BFSPath.getPath(gridClone, PacUtils.nearestPower(pc, gridClone), pc).size());
-                    }
-
-                    //System.out.println("Utility: " + newMove.value + " Blinky: " + newMove.blinkyLoc + " Inky: " +  newMove.inkyLoc+ " Pacman: " + newMove.pcLoc);
+                    newMove.value = evaluate(gridClone, pc, newMove.inkyLoc, newMove.blinkyLoc);
                 }
 
                 root.possibleMoves.add(newMove);
@@ -238,9 +213,81 @@ public class PacSimMinimax implements PacAction
 
     }
 
-    public float GetValue(GameTreeNode root)
+    private double evaluate(PacCell[][] grid, Point pc, Point ghost1, Point ghost2)
     {
-        float utility = 0;
+        double value;
+        int numFood = PacUtils.numFood(grid);
+
+        if (numFood == 0)
+            return StandardValue.win;
+
+        List<Point> food = PacUtils.findFood(grid);
+        Point nearestFood = PacUtils.nearestFood(pc, grid);
+        int distNearestFood;
+
+        if (nearestFood == null)
+        {
+            distNearestFood = 0;
+        }
+        else
+        {
+            distNearestFood = PacUtils.manhattanDistance(pc, nearestFood);
+        }
+
+        int ghost1Dist = PacUtils.manhattanDistance(pc, ghost1);
+        int ghost2Dist = PacUtils.manhattanDistance(pc, ghost2);
+        Point nearestGhost;
+        int distNearestGhost;
+
+        if (ghost1Dist < ghost2Dist)
+        {
+            nearestGhost = ghost1;
+            distNearestGhost = ghost1Dist;
+        }
+        else
+        {
+            nearestGhost = ghost2;
+            distNearestGhost = ghost2Dist;
+        }
+
+        if (distNearestGhost <= 1)
+        {
+            return StandardValue.lose;
+        }
+
+        int distToFood = 0;
+
+        for (Point pellet : food)
+        {
+            distToFood += PacUtils.manhattanDistance(pc, pellet);
+        }
+
+        value = 10.0 * (this.foodRem - numFood);
+
+        if (distNearestGhost >= 2)
+        {
+            value += 12.5;
+        }
+
+        if (distNearestFood <= distNearestGhost)
+        {
+            value = value * 5;
+
+            if (distNearestFood < 2)
+            {
+                value += 5;
+            }
+        }
+
+        value -= distToFood * .75;
+
+        return value;
+
+    }
+
+    public double GetValue(GameTreeNode root)
+    {
+        double utility = 0;
 
         // If there are no more possible moves, this is a leaf node,
         // therefore return the distance to the nearest Ghost
@@ -318,7 +365,7 @@ class GameTree
 class GameTreeNode
 {
     int player;
-    float value;
+    double value;
     List<GameTreeNode> possibleMoves;
     Point pcLoc;
     Point blinkyLoc;
@@ -327,7 +374,7 @@ class GameTreeNode
     public GameTreeNode(int player, Point pcLoc, Point blinkyLoc, Point inkyLoc)
     {
         this.player = player;
-        value = Float.MIN_VALUE;
+        value = -StandardValue.initial;
         possibleMoves = new ArrayList<>();
         this.pcLoc = pcLoc;
         this.blinkyLoc = blinkyLoc;
